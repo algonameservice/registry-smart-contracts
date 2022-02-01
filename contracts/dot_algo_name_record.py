@@ -8,7 +8,24 @@ DOT_ALGO_ESCROW_ADDRESS="TNU6NTSJA3BX2T4ZLYAHHTPAO7QUOGYD3YNUVHU37RZIDFQWQXB3LCQ
 
 def approval(name):
 
+    i = ScratchVar(TealType.uint64)
+
     is_valid_txn = Seq([
+
+        For(i.store(Int(0)), i.load() < Len(Bytes(name)), i.store(i.load() + Int(1))).Do(
+            Assert(
+                Or(
+                    And(
+                        GetByte(Bytes(name), i.load()) >= Int(97),
+                        GetByte(Bytes(name), i.load()) <= Int(122)
+                    ),
+                    And(
+                        GetByte(Bytes(name), i.load()) >= Int(48),
+                        GetByte(Bytes(name), i.load()) <= Int(57)
+                    )
+                )
+            )
+        ),
         
         Assert(
             Or(

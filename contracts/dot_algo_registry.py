@@ -74,7 +74,6 @@ def approval_program():
         Gtxn[0].type_enum() == TxnType.Payment,
         Gtxn[0].sender() == is_name_owner,
         Gtxn[0].receiver() == Global.current_application_address(),
-        #Gtxn[0].amount() == Mul(Btoi(get_arg_1), Int(COST_FOR_RENEWAL)),
         Gtxn[1].sender() == Gtxn[0].sender()
     )
     
