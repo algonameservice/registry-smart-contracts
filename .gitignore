@@ -1,3 +1,8 @@
 # Compiled version of the program
 # need not be tracked
 *.teal
+*__pycache__*
+
+# TODO: Need to find a better solution to import files in python
+unit-tests/dot_algo_registry.py
+unit-tests/dot_algo_name_record.py
