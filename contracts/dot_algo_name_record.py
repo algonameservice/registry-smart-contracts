@@ -1,12 +1,13 @@
 from pyteal import *
 
-DOT_ALGO_APP_ID = 67266758 
-COST_FOR_3 = 150000000
-COST_FOR_4 = 50000000
-COST_FOR_5 = 5000000
-DOT_ALGO_ESCROW_ADDRESS="TNU6NTSJA3BX2T4ZLYAHHTPAO7QUOGYD3YNUVHU37RZIDFQWQXB3LCQ244"
 
-def approval(name):
+def ValidateRecord(name, reg_app_id, reg_escrow_acct):
+
+    DOT_ALGO_APP_ID = reg_app_id
+    DOT_ALGO_ESCROW_ADDRESS = reg_escrow_acct
+    COST_FOR_3 = 150000000
+    COST_FOR_4 = 50000000
+    COST_FOR_5 = 5000000
 
     i = ScratchVar(TealType.uint64)
 
@@ -95,6 +96,8 @@ def approval(name):
 
     return program
 
+'''
 with open('ans-dot-algo-name-record.teal', 'w') as f:
-    compiled = compileTeal(approval("ans"), Mode.Signature, version=4)
+    compiled = compileTeal(ValidateRecord("ans"), Mode.Signature, version=4)
     f.write(compiled)
+'''

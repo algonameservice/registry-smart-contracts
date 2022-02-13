@@ -1,11 +1,18 @@
-from algosdk import mnemonic, account
+from algosdk import mnemonic, account, encoding
 from algosdk.future import transaction
+from algosdk.future.transaction import LogicSig, LogicSigTransaction, LogicSigAccount
 from algosdk.v2client import algod, indexer
+from algosdk import logic
 import json
 from pyteal import *
-from dot_algo_registry import approval_program, clear_state_program
+
+import sys
+sys.path.append('../')
+
+from contracts.dot_algo_registry import approval_program, clear_state_program
+from contracts.dot_algo_name_record import ValidateRecord
 import base64
-import datetime
+import datetime,time
 
 
 def SetupClient(network):
@@ -81,16 +88,16 @@ def FundNewAccount(algod_client, receiver, amount, funding_acct_mnemonic):
     #print("Transaction information: {}".format(
     #    json.dumps(confirmed_txn, indent=4)))
 
-def DeployANS(algod_client, contract_owner_mnemonic):
+def DeployDotAlgoReg(algod_client, contract_owner_mnemonic):
 
     private_key=mnemonic.to_private_key(contract_owner_mnemonic)
     sender=account.address_from_private_key(private_key)
 
     # Setup Schema
-    local_ints = 0 
-    local_bytes = 0 
-    global_ints = 0 
-    global_bytes = 64 
+    local_ints = 4 
+    local_bytes = 12 
+    global_ints = 32 
+    global_bytes = 32 
     global_schema = transaction.StateSchema(global_ints, global_bytes)
     local_schema = transaction.StateSchema(local_ints, local_bytes)
 
@@ -119,10 +126,222 @@ def DeployANS(algod_client, contract_owner_mnemonic):
     # display results
     transaction_response = algod_client.pending_transaction_info(tx_id)
     app_id = transaction_response['application-index']
-    print("Created new app-id: ",app_id)
+    print("Deployed new Dot Algo Registry with App-id: ",app_id)
 
     return app_id
 
+def prep_name_record_logic_sig(algod_client, name, reg_app_id):
+    reg_escrow_acct = logic.get_application_address(reg_app_id)
+    logic_sig_teal = compileTeal(ValidateRecord(name,reg_app_id,reg_escrow_acct), Mode.Signature, version=4)
+    validate_name_record_program = compile_program(algod_client, str.encode(logic_sig_teal))
+    lsig = LogicSig(validate_name_record_program)
+
+    return lsig
+
+def get_name_price(name):
+    #TODO: Find out max length of name, is 1 char = 1 byte?
+    assert(len(name)>=3 and len(name)<=64)
+    # Returns name price in ALGOs
+    if(len(name)==3):
+        return 150000000
+    elif(len(name)==4):
+        return 50000000
+    else:
+        return 5000000
+
+def prep_name_reg_gtxn(sender, name, validity, reg_app_id, algod_client):
+    
+    # Prepare group txn array
+    Grp_txns_unsign = []
+
+    # 1. PaymentTxn to Smart Contract
+    reg_escrow_acct = logic.get_application_address(reg_app_id)
+    pmnt_txn_unsign = transaction.PaymentTxn(sender, algod_client.suggested_params(), reg_escrow_acct, get_name_price(name), None)
+    Grp_txns_unsign.append(pmnt_txn_unsign)
+
+
+    # 2. Funding lsig
+    lsig = prep_name_record_logic_sig(algod_client, name, reg_app_id)
+    # Min amount necessary: 915000
+    fund_lsig_txn_unsign = transaction.PaymentTxn(sender, algod_client.suggested_params(), lsig.address(), 915000, None, None)
+    Grp_txns_unsign.append(fund_lsig_txn_unsign)
+
+    # 3. Optin to registry
+    optin_txn_unsign = transaction.ApplicationOptInTxn(lsig.address(), algod_client.suggested_params(), reg_app_id)
+    Grp_txns_unsign.append(optin_txn_unsign)
+
+    # 4. Write name and owner's address in local storage
+    txn_args = [
+        "register_name".encode("utf-8"),
+        name.encode("utf-8"),
+        validity.to_bytes(8, "big")
+    ]
+    store_owners_add_txn_unsign = transaction.ApplicationNoOpTxn(sender, algod_client.suggested_params(), reg_app_id, txn_args, [lsig.address()])
+    Grp_txns_unsign.append(store_owners_add_txn_unsign)
+
+    gid = transaction.calculate_group_id(Grp_txns_unsign)
+    for i in range(0,4):
+        Grp_txns_unsign[i].group = gid
+
+    return Grp_txns_unsign, lsig
+
+# Sign and send transactions
+def sign_name_reg_gtxn(sender_add, sender_private_key, Grp_txns_unsign, lsig, algod_client):
+    Grp_txns_signed = [Grp_txns_unsign[0].sign(sender_private_key)]
+    Grp_txns_signed.append(Grp_txns_unsign[1].sign(sender_private_key))
+    Grp_txns_signed.append(LogicSigTransaction(Grp_txns_unsign[2],lsig))
+    assert Grp_txns_signed[2].verify()
+    Grp_txns_signed.append(Grp_txns_unsign[3].sign(sender_private_key))
+
+    algod_client.send_transactions(Grp_txns_signed)
+
+    wait_for_confirmation(algod_client,Grp_txns_signed[3].transaction.get_txid())
+
+def link_socials(domainname, platform_name, profile, sender, sender_private_key, reg_app_id, algod_client):
+    
+    txn_args = [
+        "update_name".encode("utf-8"),
+        platform_name.encode("utf-8"),
+        profile.encode("utf-8"),
+    ]
+    reg_escrow_acct = logic.get_application_address(reg_app_id)
+    lsig = prep_name_record_logic_sig(algod_client, domainname, reg_app_id)
+    link_social_txn_unsign = transaction.ApplicationNoOpTxn(sender, algod_client.suggested_params(), reg_app_id, txn_args, [lsig.address()])
+    txn_signed_link_social = link_social_txn_unsign.sign(sender_private_key)
+    txid = txn_signed_link_social.get_txid()
+    algod_client.send_transaction(txn_signed_link_social)
+    wait_for_confirmation(algod_client,txid)
+
+def init_name_tnsfr_txn(domainname, sender, sender_private_key, tnsfr_price, recipient_addr, reg_app_id, algod_client):
+
+    txn_args = [
+        "initiate_transfer".encode("utf-8"),
+        tnsfr_price.to_bytes(8, "big")
+    ]
+    lsig = prep_name_record_logic_sig(algod_client, domainname, reg_app_id)
+    txn_init_name_tnsfr_unsign = transaction.ApplicationNoOpTxn(sender, algod_client.suggested_params(), reg_app_id, txn_args, [lsig.address(),recipient_addr])
+    txn_init_name_tnsfr_signd = txn_init_name_tnsfr_unsign.sign(sender_private_key)
+    txid = txn_init_name_tnsfr_signd.get_txid()
+    algod_client.send_transaction(txn_init_name_tnsfr_signd)
+    wait_for_confirmation(algod_client, txid)
+
+def prep_cmplte_name_tnsfr_gtxn(domainname, sender, tnsfr_price, recipient_addr, reg_app_id, algod_client):
+
+    # TODO: Assert if sender is authorized to complete
+    # Prepare group txn array
+    Grp_txns_unsign = []
+
+    # 1. Payment for name transfer 
+    pmnt_txn_unsign = transaction.PaymentTxn(sender, algod_client.suggested_params(), recipient_addr, tnsfr_price, None)
+    Grp_txns_unsign.append(pmnt_txn_unsign)
+
+    # 2. Transfer fee payment to registry 
+    reg_escrow_acct = logic.get_application_address(reg_app_id)
+    tnsfr_fee_pmnt_txn_unsign = transaction.PaymentTxn(sender, algod_client.suggested_params(), reg_escrow_acct, 2000000, None)
+    Grp_txns_unsign.append(tnsfr_fee_pmnt_txn_unsign)
+
+    # 3. 
+    txn_args = [
+        "accept_transfer".encode("utf-8"),
+    ]
+    lsig = prep_name_record_logic_sig(algod_client, domainname, reg_app_id)
+    txn_accpt_name_tnsfr_unsign = transaction.ApplicationNoOpTxn(sender, algod_client.suggested_params(), reg_app_id, txn_args, [lsig.address()])
+    Grp_txns_unsign.append(txn_accpt_name_tnsfr_unsign)
+
+    gid = transaction.calculate_group_id(Grp_txns_unsign)
+    for i in range(3):
+        Grp_txns_unsign[i].group = gid
+
+    return Grp_txns_unsign
+
+def sign_cmplte_name_tnsfr_gtxn(grp_txns_unsign, sender_private_key,algod_client):
+    Grp_txns_signd = [grp_txns_unsign[0].sign(sender_private_key)] 
+    Grp_txns_signd.append(grp_txns_unsign[1].sign(sender_private_key))
+    Grp_txns_signd.append(grp_txns_unsign[2].sign(sender_private_key))
+    algod_client.send_transactions(Grp_txns_signd)
+    wait_for_confirmation(algod_client,Grp_txns_signd[2].transaction.get_txid())
+
+def get_socials(algod_client, name, platform_name, reg_app_id):
+    list_platforms = ["discord","github","twitter","reddit","telegram","youtube"]
+    assert(platform_name in list_platforms)
+
+    algod_indexer = SetupIndexer("purestake")
+    reg_escrow_acct = logic.get_application_address(reg_app_id)
+    # TODO: Need proper error handling, this fails keynotfound
+    for apps_local_data in algod_indexer.account_info(address=prep_name_record_logic_sig(algod_client, name, reg_app_id).address())['account']['apps-local-state']:
+        profile_name = None
+        expiry = None
+        if(apps_local_data['id']==reg_app_id and not apps_local_data['deleted']):
+            for key_value in apps_local_data['key-value']:
+                if(base64.b64decode(key_value['key']).decode()=="expiry"):
+                    expiry = key_value['value']['uint']
+                elif(base64.b64decode(key_value['key']).decode()==platform_name):
+                    profile_name = base64.b64decode(key_value['value']['bytes']).decode()
+        if(profile_name!=None and expiry!=None and expiry>int(time.time())):
+            return profile_name
+        else:
+            return None
+
+def resolve_name(algod_client, name, reg_app_id):
+    # TODO: Make sure there are no edge cases
+    algod_indexer = SetupIndexer("purestake")
+    reg_escrow_acct = logic.get_application_address(reg_app_id)
+    for apps_local_data in algod_indexer.account_info(address=prep_name_record_logic_sig(algod_client,name, reg_app_id).address())['account']['apps-local-state']:
+        owner = None
+        expiry = None
+        if(apps_local_data['id']==reg_app_id and not apps_local_data['deleted']):
+            for key_value in apps_local_data['key-value']:
+                if(base64.b64decode(key_value['key']).decode()=="expiry"):
+                    expiry = key_value['value']['uint']
+                    print("Current time: "+str(int(time.time())))
+                    print("Expiry time: "+str(expiry))
+                elif(base64.b64decode(key_value['key']).decode()=="owner"):
+                    owner = encoding.encode_address(base64.b64decode(key_value['value']['bytes']))
+        if(owner!=None and expiry!=None and expiry>int(time.time())):
+            return owner
+        else:
+            return None
+
+def get_name_expiry(algod_client, name, reg_app_id):
+    # TODO: Make sure there are no edge cases
+    algod_indexer = SetupIndexer("purestake")
+    reg_escrow_acct = logic.get_application_address(reg_app_id)
+    for apps_local_data in algod_indexer.account_info(address=prep_name_record_logic_sig(algod_client,name, reg_app_id).address())['account']['apps-local-state']:
+        if(apps_local_data['id']==reg_app_id and not apps_local_data['deleted']):
+            for key_value in apps_local_data['key-value']:
+                if(base64.b64decode(key_value['key']).decode()=="expiry"):
+                    expiry = key_value['value']['uint']
+                    return expiry
+        return None
+
+
+def renew_name(algod_client,domainname,no_years,reg_app_id,sender_private_key):
+    # Prepare group txn array
+    Grp_txns_unsign = []
+
+    # 1. PaymentTxn to Smart Contract
+    reg_escrow_acct = logic.get_application_address(reg_app_id)
+    sender = account.address_from_private_key(sender_private_key)
+    pmnt_txn_unsign = transaction.PaymentTxn(sender, algod_client.suggested_params(), reg_escrow_acct, get_name_price(domainname)*no_years, None)
+    Grp_txns_unsign.append(pmnt_txn_unsign)
+
+
+    txn_args = [
+        "renew_name".encode("utf-8"),
+        no_years.to_bytes(8, "big")
+    ]
+    lsig = prep_name_record_logic_sig(algod_client,domainname, reg_app_id)
+    renewal_txn_unsign = transaction.ApplicationNoOpTxn(sender, algod_client.suggested_params(), reg_app_id, txn_args, [lsig.address()])
+    Grp_txns_unsign.append(renewal_txn_unsign)
+
+    transaction.assign_group_id(Grp_txns_unsign)
+
+    Grp_txns_signed = [ txn.sign(sender_private_key) for txn in Grp_txns_unsign]
+
+    txid = Grp_txns_signed[1].get_txid()
+
+    algod_client.send_transactions(Grp_txns_signed)
+    wait_for_confirmation(algod_client,txid)
 
 # helper function to compile program source
 def compile_program(algod_client, source_code) :
@@ -143,66 +362,8 @@ def wait_for_confirmation(algod_client,txid) :
         last_round += 1
         algod_client.status_after_block(last_round)
         txinfo = algod_client.pending_transaction_info(txid)
-    #print("Transaction {} confirmed in round {}.".format(txid, txinfo.get('confirmed-round')))
+    print("Transaction {} confirmed in round {}.".format(txid, txinfo.get('confirmed-round')))
     return txinfo
-
-def opt_in_app(private_key, index):
-    # declare sender
-    sender = account.address_from_private_key(private_key)
-    print("OptIn from account: ", sender)
-
-    # create unsigned transaction
-    txn = transaction.ApplicationOptInTxn(sender, algod_client.suggested_params(), index)
-
-    # sign transaction
-    signed_txn = txn.sign(private_key)
-    tx_id = signed_txn.transaction.get_txid()
-
-    # send transaction
-    algod_client.send_transactions([signed_txn])
-
-    # await confirmation
-    wait_for_confirmation(algod_client,tx_id)
-
-    # display results
-    transaction_response = algod_client.pending_transaction_info(tx_id)
-    print("OptIn to app-id:", transaction_response["txn"]["txn"]["apid"])
-
-
-def RegisterName(algod_client, app_index, name, account_mnemonic):
-
-    private_key=mnemonic.to_private_key(account_mnemonic)
-    sender=account.address_from_private_key(private_key)
-
-    on_complete = transaction.OnComplete.NoOpOC.real
-
-    #opt_in_app(algod_client,private_key,app_index)
-
-    # Set Application args
-    register_name=b"register_name"
-    #name=b"sanjay"
-
-
-    # create unsigned transaction
-    txn = transaction.ApplicationNoOpTxn(sender, algod_client.suggested_params(), app_index, app_args=[register_name,name])
-
-    # sign transaction
-    signed_txn = txn.sign(private_key)
-    tx_id = signed_txn.transaction.get_txid()
-
-    # send transaction
-    algod_client.send_transactions([signed_txn])
-
-    # await confirmation
-    wait_for_confirmation(algod_client,tx_id)
-
-    # display results
-    transaction_response = algod_client.pending_transaction_info(tx_id)
-    print("Called app-id: ",transaction_response['txn']['txn']['apid'])
-    if "global-state-delta" in transaction_response :
-        print("Global State updated :\n",transaction_response['global-state-delta'])
-    if "local-state-delta" in transaction_response :
-        print("Local State updated :\n",transaction_response['local-state-delta'])
 
 if __name__ == "__main__":
     main()
