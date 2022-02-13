@@ -78,11 +78,13 @@ def approval_program():
     )
     
     update_name = Seq([
-        Assert(get_arg_1 != Bytes("expiry")),
         Assert(get_arg_1 != Bytes("name")),
         Assert(get_arg_1 != Bytes("owner")),
+        Assert(get_arg_1 != Bytes("expiry")),
+        Assert(get_arg_1 != Bytes("transfer_price")),
+        Assert(get_arg_1 != Bytes("transfer_to")),
         Assert(is_name_owner == Txn.sender()),
-        App.localPut(Int(1),get_arg_1, get_arg_2),
+        App.localPut(Int(1), get_arg_1, get_arg_2),
         Return(Int(1))
     ])
 
