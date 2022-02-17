@@ -10,30 +10,28 @@ furnished to do so, subject to the following conditions:
 '''
 
 from pyteal import *
-
+from . import constants
 
 def ValidateRecord(name, reg_app_id, reg_escrow_acct):
 
     DOT_ALGO_APP_ID = reg_app_id
     DOT_ALGO_ESCROW_ADDRESS = reg_escrow_acct
-    COST_FOR_3 = 150000000
-    COST_FOR_4 = 50000000
-    COST_FOR_5 = 5000000
-
+    
     i = ScratchVar(TealType.uint64)
 
     is_valid_txn = Seq([
 
+        Assert(Len(Bytes(name)) <= Int(64)),
         For(i.store(Int(0)), i.load() < Len(Bytes(name)), i.store(i.load() + Int(1))).Do(
             Assert(
                 Or(
                     And(
-                        GetByte(Bytes(name), i.load()) >= Int(97),
-                        GetByte(Bytes(name), i.load()) <= Int(122)
+                        GetByte(Bytes(name), i.load()) >= Int(constants.ASCII_LOWER_CASE_A),
+                        GetByte(Bytes(name), i.load()) <= Int(constants.ASCII_LOWER_CASE_Z)
                     ),
                     And(
-                        GetByte(Bytes(name), i.load()) >= Int(48),
-                        GetByte(Bytes(name), i.load()) <= Int(57)
+                        GetByte(Bytes(name), i.load()) >= Int(constants.ASCII_DIGIT_0),
+                        GetByte(Bytes(name), i.load()) <= Int(constants.ASCII_DIGIT_9)
                     )
                 )
             )
@@ -82,19 +80,19 @@ def ValidateRecord(name, reg_app_id, reg_escrow_acct):
     ])
 
     payment_for_3 = Seq([
-        Assert(Gtxn[0].amount() >= Int(COST_FOR_3)),
+        Assert(Gtxn[0].amount() >= Int(constants.COST_FOR_3)),
         Assert(is_valid_txn),
         Int(1)
     ])
 
     payment_for_4 = Seq([
-        Assert(Gtxn[0].amount() >= Int(COST_FOR_4)),
+        Assert(Gtxn[0].amount() >= Int(constants.COST_FOR_4)),
         Assert(is_valid_txn),
         Int(1)
     ])
 
     payment_for_5 = Seq([
-        Assert(Gtxn[0].amount() >= Int(COST_FOR_5)),
+        Assert(Gtxn[0].amount() >= Int(constants.COST_FOR_5)),
         Assert(is_valid_txn),
         Int(1)
     ])
