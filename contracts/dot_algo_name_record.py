@@ -53,7 +53,6 @@ def ValidateRecord(name, reg_app_id, reg_escrow_acct):
                 And(
 
                     Gtxn[1].application_id() == Int(DOT_ALGO_APP_ID),
-                    Gtxn[1].sender() == Gtxn[0].sender(),
                     Gtxn[1].application_args[0] == Bytes("register_name"),
                     Gtxn[1].application_args[1] == Bytes(name)
                 )
