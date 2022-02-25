@@ -13,6 +13,11 @@ from pyteal import *
 from . import constants
 
 def approval_program():
+
+    on_creation = Seq([
+        App.globalPut(Bytes("name_controller"), Txn.sender()),
+        Return(Int(1))
+    ])
     
     is_valid_txn = Seq([
         
@@ -148,7 +153,7 @@ def approval_program():
     ])
 
     withdraw_funds = Seq(
-        Assert(Txn.sender() == Global.creator_address()),
+        Assert(Txn.sender() == App.globalGet(Bytes("name_controller"))),
         InnerTxnBuilder.Begin(),
         InnerTxnBuilder.SetFields(
             {
@@ -162,7 +167,7 @@ def approval_program():
     )
 
     update_or_delete_application = Seq([
-        Assert(Txn.sender() == Global.creator_address()),
+        Assert(Txn.sender() == App.globalGet(Bytes("name_controller"))),
         Return(Int(1))
     ])
 
@@ -204,19 +209,20 @@ def approval_program():
         Return(Int(1))
     ])
 
-    #MUST REMOVE:
-    expire = Seq([
-        Assert(Txn.sender() == Global.creator_address()),
-        App.localPut(Int(1), Bytes("expiry"), Int(1)),
+    update_global_state = Seq([
+        Assert(Txn.sender() == App.globalGet(Bytes("name_controller"))),
+        App.globalPut(get_arg_1, get_arg_2),
         Return(Int(1))
     ])
 
-
     program = Cond(
-        [Txn.application_id() == Int(0), Return(Int(1))],
+        [Txn.application_id() == Int(0), on_creation],
         [Txn.on_completion() == OnComplete.OptIn, Return(Int(1))],
         [Txn.on_completion() == OnComplete.UpdateApplication, update_or_delete_application],
         [Txn.on_completion() == OnComplete.DeleteApplication, update_or_delete_application],
+        [Txn.on_completion() == OnComplete.CloseOut, Return(Int(0))],
+        [Txn.on_completion() == OnComplete.ClearState, Return(Int(0))],
+        [Txn.application_args[0] == Bytes("update_global_state"), update_global_state],
         [Txn.application_args[0] == Bytes("register_name"), register_name],
         [Txn.application_args[0] == Bytes("update_name"), update_name],
         [Txn.application_args[0] == Bytes("remove_property"), delete_property],
@@ -224,8 +230,7 @@ def approval_program():
         [Txn.application_args[0] == Bytes("initiate_transfer"), initiate_transfer],
         [Txn.application_args[0] == Bytes("accept_transfer"), accept_transfer],
         [Txn.application_args[0] == Bytes("withdraw_funds"), withdraw_funds],
-        #MUST REMOVE
-        [Txn.application_args[0] == Bytes("force_expire"), expire]
+        
     )
 
     return program
