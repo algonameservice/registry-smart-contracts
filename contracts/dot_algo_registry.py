@@ -93,6 +93,7 @@ def approval_program():
         Assert(get_arg_1 != Bytes("expiry")),
         Assert(get_arg_1 != Bytes("transfer_price")),
         Assert(get_arg_1 != Bytes("transfer_to")),
+        Assert(get_arg_1 != Bytes("account")),
         Assert(is_name_owner == Txn.sender()),
         App.localPut(Int(1), get_arg_1, get_arg_2),
         Return(Int(1))
@@ -171,6 +172,13 @@ def approval_program():
         Return(Int(1))
     ])
 
+    update_resolver_account = Seq([
+        Assert(is_name_owner == Txn.sender()),
+        Assert(get_arg_1 == Bytes("account")),
+        App.localPut(Int(1), Bytes("account"), Txn.accounts[2]),
+        Return(Int(1))
+    ])
+
     initiate_transfer = Seq([
         Assert(is_name_owner == Txn.sender()),
         App.localPut(Int(1), Bytes("transfer_price"), Btoi(Txn.application_args[1])),
@@ -194,6 +202,12 @@ def approval_program():
         App.localPut(Int(1), Bytes("owner"), Gtxn[0].sender()),
         App.localPut(Int(1), Bytes("transfer_to"), Bytes("")),
         App.localPut(Int(1), Bytes("transfer_price"), Int(0)),
+        App.localPut(Int(1), Bytes("discord"), Bytes("")),
+        App.localPut(Int(1), Bytes("github"), Bytes("")),
+        App.localPut(Int(1), Bytes("twitter"), Bytes("")),
+        App.localPut(Int(1), Bytes("reddit"), Bytes("")),
+        App.localPut(Int(1), Bytes("telegram"), Bytes("")),
+        App.localPut(Int(1), Bytes("youtube"), Bytes("")),
         Return(Int(1))
     ])
 
@@ -227,6 +241,7 @@ def approval_program():
         [Txn.application_args[0] == Bytes("update_name"), update_name],
         [Txn.application_args[0] == Bytes("remove_property"), delete_property],
         [Txn.application_args[0] == Bytes("renew_name"), renew_name],
+        [Txn.application_args[0] == Bytes("update_resolver_account"), update_resolver_account],
         [Txn.application_args[0] == Bytes("initiate_transfer"), initiate_transfer],
         [Txn.application_args[0] == Bytes("accept_transfer"), accept_transfer],
         [Txn.application_args[0] == Bytes("withdraw_funds"), withdraw_funds],
