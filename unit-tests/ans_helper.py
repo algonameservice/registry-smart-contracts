@@ -7,6 +7,17 @@ in the Software without restriction, including without limitation the rights
 to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 copies of the Software, and to permit persons to whom the Software is
 furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 '''
 
 from algosdk import mnemonic, account, encoding
@@ -24,6 +35,8 @@ from contracts.dot_algo_registry import approval_program, clear_state_program
 from contracts.dot_algo_name_record import ValidateRecord
 import base64
 import datetime,time
+# Import PureStake API
+import mysecrets
 
 
 def SetupClient(network):
@@ -36,9 +49,9 @@ def SetupClient(network):
     elif(network=="purestake"):
         # Purestake conn
         algod_address = "https://testnet-algorand.api.purestake.io/ps2"
-        algod_token = "iG4m46pAcU5ws8WYhgYPu1rywUbfYT2DaAfSs9Tv"
+        algod_token = mysecrets.MY_PURESTAKE_TOKEN
         headers = {
-        "X-API-Key": algod_token,
+            "X-API-Key": mysecrets.MY_PURESTAKE_TOKEN
         }
     
     else:

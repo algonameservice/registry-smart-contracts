@@ -1,11 +1,16 @@
-# ANS 1.0 registry smart contracts
+# ANS v1.0 registry smart contracts
 
-Smart contract and logic signature code for Algorand Name Service 1.0
+Smart contract and logic signature code for Algorand Name Service v1.0
 
 ## Run unit tests
+Add PureStake API key to `unit-tests/mysecrets.py`
+```python
+# unit-tests/mysecrets.py
+MY_PURESTAKE_TOKEN="<your-token>"
+```
 
 Change directory into unit-tests and run python scripts:
-```
+```bash
 cd unit-tests
 python3 TestDotAlgoNameRegistry.py
 ```
