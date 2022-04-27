@@ -29,8 +29,55 @@ def approval_program():
         App.globalPut(Bytes("name_controller"), Txn.sender()),
         Return(Int(1))
     ])
-    
-    is_valid_txn = Seq([
+
+    i = ScratchVar(TealType.uint64)
+
+    @Subroutine(TealType.uint64)
+    def basic_transaction_checks():
+        return Seq([
+            #No rekey
+            #No foreign apps
+            #No assets
+            #Lease? I did not understand
+            For(i.store(Int(0)), i.load() < Global.group_size(), i.store(i.load() + Int(1))).Do(
+                Assert(
+                    And(
+                        Gtxn[i.load()].rekey_to() == Global.zero_address(),
+                        Gtxn[i.load()].applications.length() == Int(0),
+                        Gtxn[i.load()].assets.length() == Int(0)
+                    )
+                )
+            ),
+            Return(Int(1))
+        ])
+
+    @Subroutine(TealType.uint64)
+    def no_close_remainder_to_transaction(index):
+        return Seq([
+            Assert(Gtxn[index].close_remainder_to() == Global.zero_address()),
+            Return(Int(1))
+        ])
+
+    @Subroutine(TealType.uint64)
+    def expect_correct_app_args_size(txn_index, size):
+        return Seq([
+            Assert(Gtxn[txn_index].application_args.length() == size),
+            Return(Int(1))
+        ])
+
+    @Subroutine(TealType.uint64)
+    def expect_correct_app_accounts_size(txn_index, size):
+        return Seq([
+            Assert(Gtxn[txn_index].accounts.length() == size),
+            Return(Int(1))
+        ])        
+
+                
+        
+    is_valid_registration_txn = Seq([
+        
+        Assert(no_close_remainder_to_transaction(Int(0)) == Int(1)),
+        Assert(basic_transaction_checks() == Int(1)),
         
         Assert(
             Or(
@@ -42,13 +89,13 @@ def approval_program():
         Assert(Gtxn[0].sender() == Gtxn[1].sender()),
         Assert(Gtxn[0].receiver() == Global.current_application_address()),
         Assert(Gtxn[0].rekey_to() == Global.zero_address()),
-        Assert(Gtxn[0].close_remainder_to() == Global.zero_address()),
 
         If(Global.group_size() == Int(2))
         .Then(
             Assert(
                 And(
-
+                    expect_correct_app_accounts_size(Int(1), Int(1)),
+                    expect_correct_app_args_size(Int(1), Int(3)) == Int(1),
                     Gtxn[1].application_id() == Global.current_application_id(),
                     Gtxn[1].sender() == Gtxn[0].sender(),
                     Gtxn[1].application_args[0] == Bytes("register_name")
@@ -58,13 +105,17 @@ def approval_program():
         .Then(
             Assert(
                 And(
-
+                    expect_correct_app_accounts_size(Int(2), Int(0)),
+                    expect_correct_app_accounts_size(Int(3), Int(1)),
+                    no_close_remainder_to_transaction(Int(1)) == Int(1),
+                    expect_correct_app_args_size(Int(3), Int(3)) == Int(1),
                     Gtxn[1].receiver() == Gtxn[2].sender(),
                     Gtxn[2].application_id() == Global.current_application_id(),
                     Gtxn[2].on_completion() == OnComplete.OptIn,
                     Gtxn[3].application_id() == Global.current_application_id(),
                     Gtxn[3].sender() == Gtxn[0].sender(),
                     Gtxn[3].application_args[0] == Bytes("register_name")
+                    
                 )
             )
         ).Else(
@@ -86,9 +137,10 @@ def approval_program():
 
     new_expiry = Add(current_expiry, Mul(Btoi(get_arg_1), Int(constants.RENEWAL_TIME)))
 
-    
-    
     is_valid_renewal_txn = And(
+        basic_transaction_checks() == Int(1),
+        expect_correct_app_args_size(Int(1), Int(2)),
+        expect_correct_app_accounts_size(Int(1), Int(1)),
         Global.group_size() == Int(2),
         Gtxn[0].type_enum() == TxnType.Payment,
         Gtxn[0].rekey_to() == Global.zero_address(),
@@ -97,8 +149,29 @@ def approval_program():
         Gtxn[0].receiver() == Global.current_application_address(),
         Gtxn[1].sender() == Gtxn[0].sender()
     )
+
+    is_valid_delete_property_txn = And(
+        Gtxn[0].application_args[1] != Bytes("name"),
+        Gtxn[0].application_args[1] != Bytes("owner"),
+        Gtxn[0].application_args[1] != Bytes("expiry")
+    )
     
+    
+
     update_name = Seq([
+        Assert(basic_transaction_checks() == Int(1)),
+        #Expecting 3 app args for all gtxn in update_name
+        For(i.store(Int(0)), i.load() < Global.group_size(), i.store(i.load() + Int(1))).Do(
+            Assert(
+                expect_correct_app_args_size(i.load(), Int(3)) == Int(1),
+            )
+        ),
+        #Expecting only 1 txn.account for all gtxn in update_name
+        For(i.store(Int(0)), i.load() < Global.group_size(), i.store(i.load() + Int(1))).Do(
+            Assert(
+                expect_correct_app_accounts_size(i.load(), Int(1)) == Int(1),
+            )
+        ),
         Assert(get_arg_1 != Bytes("name")),
         Assert(get_arg_1 != Bytes("owner")),
         Assert(get_arg_1 != Bytes("expiry")),
@@ -111,6 +184,7 @@ def approval_program():
     ])
 
     renew_name = Seq([
+        Assert(basic_transaction_checks() == Int(1)),
         Assert(is_valid_renewal_txn),
         If(Len(domain_name) == Int(3))
         .Then(
@@ -128,7 +202,7 @@ def approval_program():
     
     register_name = Seq([
 
-        Assert(is_valid_txn),
+        Assert(is_valid_registration_txn),
         get_name_status,        
         Assert(
             Or(
@@ -165,6 +239,7 @@ def approval_program():
     ])
 
     withdraw_funds = Seq(
+        Assert(basic_transaction_checks() == Int(1)),
         Assert(Txn.sender() == App.globalGet(Bytes("name_controller"))),
         InnerTxnBuilder.Begin(),
         InnerTxnBuilder.SetFields(
@@ -179,11 +254,14 @@ def approval_program():
     )
 
     update_or_delete_application = Seq([
+        Assert(basic_transaction_checks() == Int(1)),
         Assert(Txn.sender() == App.globalGet(Bytes("name_controller"))),
         Return(Int(1))
     ])
 
     update_resolver_account = Seq([
+        Assert(basic_transaction_checks() == Int(1)),
+        Assert(Global.group_size() == Int(1)),
         Assert(is_name_owner == Txn.sender()),
         Assert(get_arg_1 == Bytes("account")),
         App.localPut(Int(1), Bytes("account"), Txn.accounts[2]),
@@ -191,6 +269,10 @@ def approval_program():
     ])
 
     initiate_transfer = Seq([
+        Assert(basic_transaction_checks() == Int(1)),
+        Assert(expect_correct_app_args_size(Int(0), Int(2))),
+        Assert(expect_correct_app_accounts_size(Int(0), Int(2))),
+        Assert(Global.group_size() == Int(1)),
         Assert(is_name_owner == Txn.sender()),
         App.localPut(Int(1), Bytes("transfer_price"), Btoi(Txn.application_args[1])),
         App.localPut(Int(1), Bytes("transfer_to"), Txn.accounts[2]),
@@ -198,10 +280,13 @@ def approval_program():
     ])
 
     accept_transfer = Seq([
+        Assert(basic_transaction_checks() == Int(1)),
+        Assert(expect_correct_app_args_size(Int(2), Int(1))),
+        Assert(expect_correct_app_accounts_size(Int(2), Int(1))),
         Assert(Global.group_size() == Int(3)),
         Assert(Gtxn[0].receiver() == is_name_owner),
         Assert(Gtxn[0].rekey_to() == Global.zero_address()),
-        Assert(Gtxn[0].close_remainder_to() == Global.zero_address()),
+        Assert(no_close_remainder_to_transaction(Int(0)) == Int(1)),
         Assert(Gtxn[0].amount() == App.localGet(Int(1), Bytes("transfer_price"))),
         Assert(Gtxn[0].sender() == App.localGet(Int(1), Bytes("transfer_to"))),
         Assert(Gtxn[0].sender() == Gtxn[1].sender()),
@@ -209,7 +294,7 @@ def approval_program():
         Assert(Gtxn[1].receiver() == Global.current_application_address()),
         Assert(Gtxn[1].amount() == Int(constants.COST_FOR_TRANSFER)),
         Assert(Gtxn[1].rekey_to() == Global.zero_address()),
-        Assert(Gtxn[1].close_remainder_to() == Global.zero_address()),
+        Assert(no_close_remainder_to_transaction(Int(1)) == Int(1)),
         App.localPut(Int(1), Bytes("owner"), Gtxn[0].sender()),
         App.localPut(Int(1), Bytes("transfer_to"), Bytes("")),
         App.localPut(Int(1), Bytes("transfer_price"), Int(0)),
@@ -219,12 +304,15 @@ def approval_program():
         App.localPut(Int(1), Bytes("reddit"), Bytes("")),
         App.localPut(Int(1), Bytes("telegram"), Bytes("")),
         App.localPut(Int(1), Bytes("youtube"), Bytes("")),
+        App.localPut(Int(1), Bytes("subdomain"), Int(0)),
         Return(Int(1))
     ])
 
     property_to_delete = App.localGetEx(Int(1), App.id(), Txn.application_args[1])
 
     delete_property = Seq([
+        Assert(basic_transaction_checks() == Int(1)),
+        Assert(is_valid_delete_property_txn),
         Assert(is_name_owner == Txn.sender()),
         property_to_delete,
         If(property_to_delete.hasValue(),
@@ -235,6 +323,7 @@ def approval_program():
     ])
 
     update_global_state = Seq([
+        Assert(basic_transaction_checks() == Int(1)),
         Assert(Txn.sender() == App.globalGet(Bytes("name_controller"))),
         App.globalPut(get_arg_1, get_arg_2),
         Return(Int(1))
