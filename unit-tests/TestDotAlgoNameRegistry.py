@@ -49,7 +49,7 @@ class TestDotAlgoNameRegistry(unittest.TestCase):
         new_acct_addr, new_acct_mnemonic = anshelper.GenerateAccount()
 
         print("Generated new account: "+new_acct_addr)
-
+        print("Account mnemonic: "+new_acct_mnemonic)
         anshelper.FundNewAccount(TestDotAlgoNameRegistry.algod_client, new_acct_addr, 3401000, TestDotAlgoNameRegistry.funding_acct_mnemonic)    
 
         print("Funded 3401000 to new account for the purpose of deploying registry")
