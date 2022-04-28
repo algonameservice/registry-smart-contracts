@@ -234,8 +234,8 @@ def approval_program():
     update_resolver_account = Seq([
         Assert(basic_txn_checks() == Int(1)),
         Assert(Global.group_size() == Int(1)),
+        Assert(Txn.application_args.length() == Int(1)),
         Assert(is_name_owner == Txn.sender()),
-        Assert(get_arg_1 == Bytes("account")),
         App.localPut(Int(1), Bytes("account"), Txn.accounts[2]),
         Return(Int(1))
     ])

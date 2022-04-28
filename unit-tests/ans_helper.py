@@ -236,6 +236,18 @@ def link_socials(domainname, platform_name, profile, sender, sender_private_key,
     algod_client.send_transaction(txn_signed_link_social)
     wait_for_confirmation(algod_client,txid)
 
+def update_rslvr_acc_txn(domainname, sender, sender_private_key, resolver_addr, reg_app_id, algod_client):
+
+    txn_args = [
+        "update_resolver_account".encode("utf-8")
+    ]
+    lsig = prep_name_record_logic_sig(algod_client, domainname, reg_app_id)
+    txn_update_rslvr_acc_unsign = transaction.ApplicationNoOpTxn(sender, algod_client.suggested_params(), reg_app_id, txn_args, [lsig.address(),resolver_addr])
+    txn_update_rslvr_signd = txn_update_rslvr_acc_unsign.sign(sender_private_key)
+    txid = txn_update_rslvr_signd.get_txid()
+    algod_client.send_transaction(txn_update_rslvr_signd)
+    wait_for_confirmation(algod_client, txid)    
+
 def init_name_tnsfr_txn(domainname, sender, sender_private_key, tnsfr_price, recipient_addr, reg_app_id, algod_client):
 
     txn_args = [
@@ -248,6 +260,18 @@ def init_name_tnsfr_txn(domainname, sender, sender_private_key, tnsfr_price, rec
     txid = txn_init_name_tnsfr_signd.get_txid()
     algod_client.send_transaction(txn_init_name_tnsfr_signd)
     wait_for_confirmation(algod_client, txid)
+
+def withdraw_name_tnsfr_txn(domainname, sender, sender_private_key, reg_app_id, algod_client):
+
+    txn_args = [
+        "withdraw_transfer".encode("utf-8")
+    ]
+    lsig = prep_name_record_logic_sig(algod_client, domainname, reg_app_id)
+    txn_withdraw_name_tnsfr_unsign = transaction.ApplicationNoOpTxn(sender, algod_client.suggested_params(), reg_app_id, txn_args, [lsig.address()])
+    txn_withdraw_name_tnsfr_signd = txn_withdraw_name_tnsfr_unsign.sign(sender_private_key)
+    txid = txn_withdraw_name_tnsfr_signd.get_txid()
+    algod_client.send_transaction(txn_withdraw_name_tnsfr_signd)
+    wait_for_confirmation(algod_client, txid)    
 
 def prep_cmplte_name_tnsfr_gtxn(domainname, sender, tnsfr_price, recipient_addr, reg_app_id, algod_client):
 
@@ -284,6 +308,21 @@ def sign_cmplte_name_tnsfr_gtxn(grp_txns_unsign, sender_private_key,algod_client
     Grp_txns_signd.append(grp_txns_unsign[2].sign(sender_private_key))
     algod_client.send_transactions(Grp_txns_signd)
     wait_for_confirmation(algod_client,Grp_txns_signd[2].transaction.get_txid())
+
+def set_default_acc_txn(domainname, sender, sender_private_key, reg_app_id, algod_client):
+
+    txn_args = [
+        "set_default_account".encode("utf-8")
+    ]
+
+    lsig = prep_name_record_logic_sig(algod_client, domainname, reg_app_id)
+    txn_set_default_acc_unsign = transaction.ApplicationNoOpTxn(sender, algod_client.suggested_params(), reg_app_id, txn_args, [lsig.address()])
+    txn_set_default_acc_signd = txn_set_default_acc_unsign.sign(sender_private_key)
+    txid = txn_set_default_acc_signd.get_txid()
+    algod_client.send_transaction(txn_set_default_acc_signd)
+    wait_for_confirmation(algod_client, txid)   
+
+  
 
 def get_socials(algod_client, name, platform_name, reg_app_id):
     list_platforms = ["discord","github","twitter","reddit","telegram","youtube"]
