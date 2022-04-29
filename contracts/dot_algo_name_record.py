@@ -114,9 +114,3 @@ def ValidateRecord(name, reg_app_id, reg_escrow_acct):
     )
 
     return program
-
-'''
-with open('ans-dot-algo-name-record.teal', 'w') as f:
-    compiled = compileTeal(ValidateRecord("ans"), Mode.Signature, version=4)
-    f.write(compiled)
-'''

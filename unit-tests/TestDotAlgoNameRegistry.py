@@ -49,7 +49,7 @@ class TestDotAlgoNameRegistry(unittest.TestCase):
         new_acct_addr, new_acct_mnemonic = anshelper.GenerateAccount()
 
         print("Generated new account: "+new_acct_addr)
-
+        print("Account mnemonic: "+new_acct_mnemonic)
         anshelper.FundNewAccount(TestDotAlgoNameRegistry.algod_client, new_acct_addr, 3401000, TestDotAlgoNameRegistry.funding_acct_mnemonic)    
 
         print("Funded 3401000 to new account for the purpose of deploying registry")
@@ -100,16 +100,34 @@ class TestDotAlgoNameRegistry(unittest.TestCase):
 
         #TODO: Repeat tests for other socials
 
+    def test_e_set_account_prop(self):
+
+        print("Test 6: Set Resolver Property")
+        
+        update_rslvr_txn = anshelper.update_rslvr_acc_txn(TestDotAlgoNameRegistry.name, TestDotAlgoNameRegistry.new_acct_addr, mnemonic.to_private_key(TestDotAlgoNameRegistry.new_acct_mnemonic), TestDotAlgoNameRegistry.funding_addr,TestDotAlgoNameRegistry.app_index,TestDotAlgoNameRegistry.algod_client)
+
+    
+    def test_e_setdefaultaccount(self):
+
+        print("Test 7: Set Default Account")
+        set_default_account_txn = anshelper.set_default_acc_txn(TestDotAlgoNameRegistry.name, TestDotAlgoNameRegistry.new_acct_addr, mnemonic.to_private_key(TestDotAlgoNameRegistry.new_acct_mnemonic), TestDotAlgoNameRegistry.app_index,TestDotAlgoNameRegistry.algod_client)
+
     def test_e_transfername(self):
 
-        print("Test 5: Transfer Name")
+        print("Test 8: Transfer Name")
         tnsfr_price = 4000000
         init_name_tnsfr_txn = anshelper.init_name_tnsfr_txn(TestDotAlgoNameRegistry.name, TestDotAlgoNameRegistry.new_acct_addr, mnemonic.to_private_key(TestDotAlgoNameRegistry.new_acct_mnemonic), tnsfr_price, TestDotAlgoNameRegistry.funding_addr,TestDotAlgoNameRegistry.app_index,TestDotAlgoNameRegistry.algod_client)
 
+        withdraw_name_tnsfr_txn = anshelper.withdraw_name_tnsfr_txn(TestDotAlgoNameRegistry.name, TestDotAlgoNameRegistry.new_acct_addr, mnemonic.to_private_key(TestDotAlgoNameRegistry.new_acct_mnemonic), TestDotAlgoNameRegistry.app_index,TestDotAlgoNameRegistry.algod_client)
+
+        init_name_tnsfr_txn = anshelper.init_name_tnsfr_txn(TestDotAlgoNameRegistry.name, TestDotAlgoNameRegistry.new_acct_addr, mnemonic.to_private_key(TestDotAlgoNameRegistry.new_acct_mnemonic), tnsfr_price, TestDotAlgoNameRegistry.funding_addr,TestDotAlgoNameRegistry.app_index,TestDotAlgoNameRegistry.algod_client)
         #TODO: Send accept name transfer txn
         name_tnsfr_gtxn = anshelper.prep_cmplte_name_tnsfr_gtxn(TestDotAlgoNameRegistry.name, TestDotAlgoNameRegistry.funding_addr, tnsfr_price, TestDotAlgoNameRegistry.new_acct_addr, TestDotAlgoNameRegistry.app_index, TestDotAlgoNameRegistry.algod_client)
 
         anshelper.sign_cmplte_name_tnsfr_gtxn(name_tnsfr_gtxn, mnemonic.to_private_key(TestDotAlgoNameRegistry.funding_acct_mnemonic),TestDotAlgoNameRegistry.algod_client)
+
+    
+
 
 # TODO: See where tearDown goes, class or outside
 def tearDownClass(self) -> None:
