@@ -57,7 +57,8 @@ def approval_program():
                     And(
                         Gtxn[i.load()].rekey_to() == Global.zero_address(),
                         Gtxn[i.load()].applications.length() == Int(0),
-                        Gtxn[i.load()].assets.length() == Int(0)
+                        Gtxn[i.load()].assets.length() == Int(0),
+                        Gtxn[i.load()].fee() <= Int(1000)
                     )
                 )
             ),
@@ -319,6 +320,7 @@ def approval_program():
                 TxnField.type_enum: TxnType.Payment,
                 TxnField.receiver: Txn.sender(),
                 TxnField.amount: Btoi(Txn.application_args[1]),
+                TxnField.fee: Int(1000)
             }
         ),
         InnerTxnBuilder.Submit(),
