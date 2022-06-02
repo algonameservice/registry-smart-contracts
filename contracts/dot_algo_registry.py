@@ -23,7 +23,7 @@ SOFTWARE.
 from pyteal import *
 from . import constants
 
-def approval_program():
+def approval_program(account):
 
     get_arg_1 = Txn.application_args[1]
     get_arg_2 = Txn.application_args[2]
@@ -39,7 +39,7 @@ def approval_program():
     property_to_delete = App.localGetEx(Int(1), App.id(), Txn.application_args[1])
 
     on_creation = Seq([
-        App.globalPut(Bytes("name_controller"), Txn.sender()),
+        App.globalPut(Bytes("name_controller"), Addr(account)),
         Return(Int(1))
     ])
 
@@ -48,10 +48,6 @@ def approval_program():
     @Subroutine(TealType.uint64)
     def basic_txn_checks():
         return Seq([
-            #No rekey
-            #No foreign apps
-            #No assets
-            #Lease? I did not understand
             For(i.store(Int(0)), i.load() < Global.group_size(), i.store(i.load() + Int(1))).Do(
                 Assert(
                     And(
@@ -86,7 +82,41 @@ def approval_program():
             Return(Int(1))
         ])        
 
-                
+    @Subroutine(TealType.uint64)
+    def reset_domain_properties():
+        return Seq([
+            discord := App.localGetEx(Int(1), Txn.application_id(), Bytes("discord")),
+            discord,
+            If(discord.hasValue()).Then(App.localDel(Int(1), Bytes("discord"))),
+            github := App.localGetEx(Int(1), Txn.application_id(), Bytes("github")),
+            github,
+            If(github.hasValue()).Then(App.localDel(Int(1), Bytes("github"))),
+            twitter := App.localGetEx(Int(1), Txn.application_id(), Bytes("twitter")),
+            twitter,
+            If(twitter.hasValue()).Then(App.localDel(Int(1), Bytes("twitter"))),
+            reddit := App.localGetEx(Int(1), Txn.application_id(), Bytes("reddit")),
+            reddit,
+            If(reddit.hasValue()).Then(App.localDel(Int(1), Bytes("reddit"))),
+            telegram := App.localGetEx(Int(1), Txn.application_id(), Bytes("telegram")),
+            telegram,
+            If(telegram.hasValue()).Then(App.localDel(Int(1), Bytes("telegram"))),
+            youtube := App.localGetEx(Int(1), Txn.application_id(), Bytes("youtube")),
+            youtube,
+            If(youtube.hasValue()).Then(App.localDel(Int(1), Bytes("youtube"))),
+            avatar := App.localGetEx(Int(1), Txn.application_id(), Bytes("avatar")),
+            avatar,
+            If(avatar.hasValue()).Then(App.localDel(Int(1), Bytes("avatar"))),
+            value := App.localGetEx(Int(1), Txn.application_id(), Bytes("value")),
+            value,
+            If(value.hasValue()).Then(App.localDel(Int(1), Bytes("value"))),
+            content := App.localGetEx(Int(1), Txn.application_id(), Bytes("content")),
+            content,
+            If(content.hasValue()).Then(App.localDel(Int(1), Bytes("content"))),
+            ipaddress := App.localGetEx(Int(1), Txn.application_id(), Bytes("ipaddress")),
+            ipaddress,
+            If(ipaddress.hasValue()).Then(App.localDel(Int(1), Bytes("ipaddress"))),
+            Return(Int(1))
+        ])           
         
     is_valid_registration_txn = Seq([
         
@@ -159,7 +189,7 @@ def approval_program():
         Txn.application_args[1] != Bytes("transfer_price"),
         Txn.application_args[1] != Bytes("transfer_to"),
         Txn.application_args[1] != Bytes("subdomain"),
-        Txn.application_args[1] != Bytes("account")
+        Txn.application_args[1] != Bytes("value")
     )
 
     register_name = Seq([
@@ -196,7 +226,7 @@ def approval_program():
         App.localPut(Int(1), Bytes("subdomain"), Int(0)),
         App.localPut(Int(1), Bytes("transfer_price"), Bytes("")),
         App.localPut(Int(1), Bytes("transfer_to"), Bytes("")),
-        App.localPut(Int(1), Bytes("account"), Txn.sender()),
+        App.localPut(Int(1), Bytes("value"), Txn.sender()),
         App.localPut(Int(1), Bytes("name"), Txn.application_args[1]),
         Return(Int(1))
     ])
@@ -226,7 +256,7 @@ def approval_program():
         Assert(get_arg_1 != Bytes("expiry")),
         Assert(get_arg_1 != Bytes("transfer_price")),
         Assert(get_arg_1 != Bytes("transfer_to")),
-        Assert(get_arg_1 != Bytes("account")),
+        Assert(get_arg_1 != Bytes("value")),
         Assert(is_name_owner == Txn.sender()),
         App.localPut(Int(1), get_arg_1, get_arg_2),
         Return(Int(1))
@@ -237,7 +267,7 @@ def approval_program():
         Assert(Global.group_size() == Int(1)),
         Assert(Txn.application_args.length() == Int(1)),
         Assert(is_name_owner == Txn.sender()),
-        App.localPut(Int(1), Bytes("account"), Txn.accounts[2]),
+        App.localPut(Int(1), Bytes("value"), Txn.accounts[2]),
         Return(Int(1))
     ])
 
@@ -246,7 +276,7 @@ def approval_program():
         Assert(is_name_owner == Txn.sender()),
         Assert(Txn.application_args.length() == Int(1)),
         Assert(Txn.accounts.length() == Int(1)),
-        App.localPut(Int(1), Bytes("default_account"), Int(1)),
+        App.localPut(Int(1), Bytes("is_default"), Int(1)),
         Return(Int(1))
     ])
 
@@ -298,15 +328,10 @@ def approval_program():
         Assert(Gtxn[1].amount() == Int(constants.COST_FOR_TRANSFER)),
         Assert(Gtxn[1].rekey_to() == Global.zero_address()),
         Assert(check_closeremndr(Int(1)) == Int(1)),
+        Assert(reset_domain_properties() == Int(1)),
         App.localPut(Int(1), Bytes("owner"), Gtxn[0].sender()),
         App.localPut(Int(1), Bytes("transfer_to"), Bytes("")),
         App.localPut(Int(1), Bytes("transfer_price"), Int(0)),
-        App.localPut(Int(1), Bytes("discord"), Bytes("")),
-        App.localPut(Int(1), Bytes("github"), Bytes("")),
-        App.localPut(Int(1), Bytes("twitter"), Bytes("")),
-        App.localPut(Int(1), Bytes("reddit"), Bytes("")),
-        App.localPut(Int(1), Bytes("telegram"), Bytes("")),
-        App.localPut(Int(1), Bytes("youtube"), Bytes("")),
         App.localPut(Int(1), Bytes("subdomain"), Int(0)),
         Return(Int(1))
     ])
@@ -318,7 +343,7 @@ def approval_program():
         InnerTxnBuilder.SetFields(
             {
                 TxnField.type_enum: TxnType.Payment,
-                TxnField.receiver: Txn.sender(),
+                TxnField.receiver: Txn.accounts[1],
                 TxnField.amount: Btoi(Txn.application_args[1]),
                 TxnField.fee: Int(1000)
             }
@@ -367,7 +392,7 @@ def clear_state_program():
     return Int(1) 
 
 with open('dot_algo_registry_approval.teal', 'w') as f:
-    compiled = compileTeal(approval_program(), Mode.Application, version=5)
+    compiled = compileTeal(approval_program('PD2CGHFAZZQNYBRPZH7HNTA275K3FKZPENRSUXWZHBIVNPHVDFHLNIUSXU'), Mode.Application, version=5)
     f.write(compiled)
 
 with open('dot_algo_registry_clear_state.teal', 'w') as f:
