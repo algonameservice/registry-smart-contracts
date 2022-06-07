@@ -106,15 +106,15 @@ def approval_program(account):
             avatar := App.localGetEx(Int(1), Txn.application_id(), Bytes("avatar")),
             avatar,
             If(avatar.hasValue()).Then(App.localDel(Int(1), Bytes("avatar"))),
-            value := App.localGetEx(Int(1), Txn.application_id(), Bytes("value")),
-            value,
-            If(value.hasValue()).Then(App.localDel(Int(1), Bytes("value"))),
             content := App.localGetEx(Int(1), Txn.application_id(), Bytes("content")),
             content,
             If(content.hasValue()).Then(App.localDel(Int(1), Bytes("content"))),
             ipaddress := App.localGetEx(Int(1), Txn.application_id(), Bytes("ipaddress")),
             ipaddress,
             If(ipaddress.hasValue()).Then(App.localDel(Int(1), Bytes("ipaddress"))),
+            is_default := App.localGetEx(Int(1), Txn.application_id(), Bytes("is_default")),
+            is_default,
+            If(is_default.hasValue()).Then(App.localDel(Int(1), Bytes("is_default"))),
             Return(Int(1))
         ])           
         
@@ -330,6 +330,7 @@ def approval_program(account):
         Assert(check_closeremndr(Int(1)) == Int(1)),
         Assert(reset_domain_properties() == Int(1)),
         App.localPut(Int(1), Bytes("owner"), Gtxn[0].sender()),
+        App.localPut(Int(1), Bytes("value"), Gtxn[0].sender()),
         App.localPut(Int(1), Bytes("transfer_to"), Bytes("")),
         App.localPut(Int(1), Bytes("transfer_price"), Int(0)),
         App.localPut(Int(1), Bytes("subdomain"), Int(0)),
