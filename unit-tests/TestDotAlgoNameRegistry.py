@@ -1,5 +1,5 @@
 '''
-Copyright (c) 2022 Algorand Name Service
+Copyright (c) 2022 Algorand Name Service DAO LLC
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -73,7 +73,7 @@ class TestDotAlgoNameRegistry(unittest.TestCase):
         print("Funded 12000000 to new account for the purpose of registering name")
         print("Funding account: "+TestDotAlgoNameRegistry.funding_addr)
 
-        print("DEBUG: Registry deployed to"+str(TestDotAlgoNameRegistry.app_index))
+        print("DEBUG: Registry deployed to "+str(TestDotAlgoNameRegistry.app_index))
 
         print("Name: "+TestDotAlgoNameRegistry.name+" to be owned by: "+ TestDotAlgoNameRegistry.new_acct_addr)
         gtx_unsign_regname, lsig =  anshelper.prep_name_reg_gtxn(TestDotAlgoNameRegistry.new_acct_addr, TestDotAlgoNameRegistry.name , 1, TestDotAlgoNameRegistry.app_index, TestDotAlgoNameRegistry.algod_client)

@@ -1,5 +1,5 @@
 '''
-Copyright (c) 2022 Algorand Name Service
+Copyright (c) 2022 Algorand Name Service DAO LLC
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -35,7 +35,6 @@ from contracts.dot_algo_registry import approval_program, clear_state_program
 from contracts.dot_algo_name_record import ValidateRecord
 import base64
 import datetime,time
-# Import PureStake API
 import mysecrets
 
 
@@ -64,7 +63,7 @@ def SetupIndexer(network):
     if(network=="purestake"):
         algod_address = "https://testnet-algorand.api.purestake.io/idx2"
         headers = {
-            'X-API-key' : 'iG4m46pAcU5ws8WYhgYPu1rywUbfYT2DaAfSs9Tv',
+            'X-API-key' : mysecrets.MY_PURESTAKE_TOKEN,
         }
         algod_indexer=indexer.IndexerClient("", algod_address, headers)
     
@@ -72,22 +71,17 @@ def SetupIndexer(network):
 
 def GetFundingAccount(algod_client):
 
-    # address: KLRZGUWF5WDUWZXSGCWA723FLZXMQ4GIPXD2UYJ6C74X3N3NES4QH5XIF4
-    passphrase= "crumble inquiry mixed teach february usage nerve nose brain angry broccoli attend cram empower immense chest safe field cup head badge strategy clip absent dice"
+    passphrase = mysecrets.FUNDING_ACCOUNT_MNEMONIC
 
     private_key = mnemonic.to_private_key(passphrase)
     sender = account.address_from_private_key(private_key)
-    #print("Sender address: {}".format(sender))
 
     account_info = algod_client.account_info(sender)
-    #print("Account balance: {} microAlgos".format(account_info.get('amount')))
 
     return sender, passphrase
 
 def GenerateAccount():
     new_private_key, new_address = account.generate_account()
-    #print("New address: {}".format(new_address))
-    #print("Passphrase: {}".format(mnemonic.from_private_key(new_private_key)))
     return new_address, mnemonic.from_private_key(new_private_key)
 
 def FundNewAccount(algod_client, receiver, amount, funding_acct_mnemonic):
@@ -108,9 +102,6 @@ def FundNewAccount(algod_client, receiver, amount, funding_acct_mnemonic):
     except Exception as err:
         print(err)
         return
-
-    #print("Transaction information: {}".format(
-    #    json.dumps(confirmed_txn, indent=4)))
 
 def DeployDotAlgoReg(algod_client, contract_owner_mnemonic):
 
@@ -138,8 +129,6 @@ def DeployDotAlgoReg(algod_client, contract_owner_mnemonic):
     # sign transaction
     signed_txn = txn.sign(private_key)
     tx_id = signed_txn.transaction.get_txid()
-
-    print(tx_id)
 
     # send transaction
     algod_client.send_transactions([signed_txn])
@@ -356,8 +345,6 @@ def resolve_name(algod_client, name, reg_app_id):
             for key_value in apps_local_data['key-value']:
                 if(base64.b64decode(key_value['key']).decode()=="expiry"):
                     expiry = key_value['value']['uint']
-                    print("Current time: "+str(int(time.time())))
-                    print("Expiry time: "+str(expiry))
                 elif(base64.b64decode(key_value['key']).decode()=="owner"):
                     owner = encoding.encode_address(base64.b64decode(key_value['value']['bytes']))
         if(owner!=None and expiry!=None and expiry>int(time.time())):
