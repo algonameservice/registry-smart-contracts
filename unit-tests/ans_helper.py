@@ -118,7 +118,7 @@ def DeployDotAlgoReg(algod_client, contract_owner_mnemonic):
 
     on_complete = transaction.OnComplete.NoOpOC.real
 
-    compileTeal(approval_program(), Mode.Application,version=5)
+    compileTeal(approval_program(sender), Mode.Application,version=5)
     compileTeal(clear_state_program(), Mode.Application,version=5)
 
     ans_approval_program = compile_program(algod_client, import_teal_source_code_as_binary('dot_algo_registry_approval.teal'))
