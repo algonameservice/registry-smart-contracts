@@ -403,10 +403,10 @@ def clear_state_program():
     return Int(1) 
 
 with open('dot_algo_registry_approval.teal', 'w') as f:
-    compiled = compileTeal(approval_program('PD2CGHFAZZQNYBRPZH7HNTA275K3FKZPENRSUXWZHBIVNPHVDFHLNIUSXU'), Mode.Application, version=5)
+    compiled = compileTeal(approval_program('PD2CGHFAZZQNYBRPZH7HNTA275K3FKZPENRSUXWZHBIVNPHVDFHLNIUSXU'), Mode.Application, version=6)
     f.write(compiled)
 
 with open('dot_algo_registry_clear_state.teal', 'w') as f:
-    compiled = compileTeal(clear_state_program(), Mode.Application, version=5)
+    compiled = compileTeal(clear_state_program(), Mode.Application, version=6)
     f.write(compiled)
 
