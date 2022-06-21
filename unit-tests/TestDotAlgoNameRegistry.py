@@ -44,7 +44,7 @@ class TestDotAlgoNameRegistry(unittest.TestCase):
         cls.app_index = 0
 
 #class DeployNameRegistry(TestDotAlgoNameRegistry):
-    
+
     def test_a_deploynameregistry(self):
         new_acct_addr, new_acct_mnemonic = anshelper.GenerateAccount()
 
@@ -65,10 +65,10 @@ class TestDotAlgoNameRegistry(unittest.TestCase):
         self.assertEqual(new_acct_addr,response["application"]["params"]["creator"])
 
 #class RegisterDotAlgoName(TestDotAlgoNameRegistry):
-        
+    
     def test_b_register5letterdotalgoname(self):
 
-        anshelper.FundNewAccount(TestDotAlgoNameRegistry.algod_client, TestDotAlgoNameRegistry.new_acct_addr, 12000000, TestDotAlgoNameRegistry.funding_acct_mnemonic)    
+        anshelper.FundNewAccount(TestDotAlgoNameRegistry.algod_client, TestDotAlgoNameRegistry.new_acct_addr, 15000000, TestDotAlgoNameRegistry.funding_acct_mnemonic)    
 
         print("Funded 12000000 to new account for the purpose of registering name")
         print("Funding account: "+TestDotAlgoNameRegistry.funding_addr)
@@ -125,9 +125,7 @@ class TestDotAlgoNameRegistry(unittest.TestCase):
         name_tnsfr_gtxn = anshelper.prep_cmplte_name_tnsfr_gtxn(TestDotAlgoNameRegistry.name, TestDotAlgoNameRegistry.funding_addr, tnsfr_price, TestDotAlgoNameRegistry.new_acct_addr, TestDotAlgoNameRegistry.app_index, TestDotAlgoNameRegistry.algod_client)
 
         anshelper.sign_cmplte_name_tnsfr_gtxn(name_tnsfr_gtxn, mnemonic.to_private_key(TestDotAlgoNameRegistry.funding_acct_mnemonic),TestDotAlgoNameRegistry.algod_client)
-
     
-
 
 # TODO: See where tearDown goes, class or outside
 def tearDownClass(self) -> None:

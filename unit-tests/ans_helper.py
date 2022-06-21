@@ -28,9 +28,11 @@ from algosdk import logic
 import json
 from pyteal import *
 
+
 import sys
 sys.path.append('../')
 
+from contracts.v2constants import COST_FOR_5, COST_FOR_4, COST_FOR_3
 from contracts.dot_algo_registry import approval_program, clear_state_program
 from contracts.dot_algo_name_record import ValidateRecord
 import base64
@@ -73,8 +75,7 @@ def SetupIndexer(network):
 def GetFundingAccount(algod_client):
 
     # address: KLRZGUWF5WDUWZXSGCWA723FLZXMQ4GIPXD2UYJ6C74X3N3NES4QH5XIF4
-    passphrase= "crumble inquiry mixed teach february usage nerve nose brain angry broccoli attend cram empower immense chest safe field cup head badge strategy clip absent dice"
-
+    passphrase="ribbon tube logic resemble cream grit pool case wolf nominee enroll lens myth eagle bus hint burst awake photo bleak once tray kind absent venue"
     private_key = mnemonic.to_private_key(passphrase)
     sender = account.address_from_private_key(private_key)
     #print("Sender address: {}".format(sender))
@@ -167,11 +168,11 @@ def get_name_price(name):
     assert(len(name)>=3 and len(name)<=64)
     # Returns name price in ALGOs
     if(len(name)==3):
-        return 150000000
+        return COST_FOR_3
     elif(len(name)==4):
-        return 50000000
+        return COST_FOR_4
     else:
-        return 5000000
+        return COST_FOR_5
 
 def prep_name_reg_gtxn(sender, name, validity, reg_app_id, algod_client):
     
@@ -321,8 +322,6 @@ def set_default_acc_txn(domainname, sender, sender_private_key, reg_app_id, algo
     txid = txn_set_default_acc_signd.get_txid()
     algod_client.send_transaction(txn_set_default_acc_signd)
     wait_for_confirmation(algod_client, txid)   
-
-  
 
 def get_socials(algod_client, name, platform_name, reg_app_id):
     list_platforms = ["discord","github","twitter","reddit","telegram","youtube"]

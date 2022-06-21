@@ -21,7 +21,7 @@ SOFTWARE.
 '''
 
 from pyteal import *
-from . import constants
+from . import v2constants
 
 def approval_program(account):
 
@@ -35,11 +35,11 @@ def approval_program(account):
     current_expiry = App.localGet(Int(1), Bytes("expiry"))
     domain_name = App.localGet(Int(1), Bytes("name"))
 
-    new_expiry = Add(current_expiry, Mul(Btoi(get_arg_1), Int(constants.RENEWAL_TIME)))
+    new_expiry = Add(current_expiry, Mul(Btoi(get_arg_1), Int(v2constants.RENEWAL_TIME)))
     property_to_delete = App.localGetEx(Int(1), App.id(), Txn.application_args[1])
 
     on_creation = Seq([
-        App.globalPut(Bytes("name_controller"), Addr(account)),
+        App.globalPut(Bytes("name_controller"), Txn.sender()),
         Return(Int(1))
     ])
 
@@ -208,21 +208,21 @@ def approval_program(account):
             Or(
                 And(
                     Len(Txn.application_args[1]) == Int(3), 
-                    Gtxn[0].amount() >= Add(Int(constants.COST_FOR_3), Mul(number_of_years, Int(constants.COST_FOR_3)))
+                    Gtxn[0].amount() >= Add(Int(v2constants.COST_FOR_3), Mul(number_of_years, Int(v2constants.COST_FOR_3)))
                 ),
                 And(
                     Len(Txn.application_args[1]) == Int(4), 
-                    Gtxn[0].amount() >= Add(Int(constants.COST_FOR_4), Mul(number_of_years, Int(constants.COST_FOR_4)))
+                    Gtxn[0].amount() >= Add(Int(v2constants.COST_FOR_4), Mul(number_of_years, Int(v2constants.COST_FOR_4)))
                 ),
                 And(
                     Len(Txn.application_args[1]) >= Int(5), 
-                    Gtxn[0].amount() >= Add(Int(constants.COST_FOR_5), Mul(number_of_years, Int(constants.COST_FOR_5)))
+                    Gtxn[0].amount() >= Add(Int(v2constants.COST_FOR_5), Mul(number_of_years, Int(v2constants.COST_FOR_5)))
                 )
             )
         ),
 
         App.localPut(Int(1), Bytes("owner"), Txn.sender()),
-        App.localPut(Int(1), Bytes("expiry"), Add(Global.latest_timestamp(), Mul(Int(constants.RENEWAL_TIME), Add(number_of_years, Int(1))))),
+        App.localPut(Int(1), Bytes("expiry"), Add(Global.latest_timestamp(), Mul(Int(v2constants.RENEWAL_TIME), Add(number_of_years, Int(1))))),
         App.localPut(Int(1), Bytes("subdomain"), Int(0)),
         App.localPut(Int(1), Bytes("transfer_price"), Bytes("")),
         App.localPut(Int(1), Bytes("transfer_to"), Bytes("")),
@@ -235,13 +235,13 @@ def approval_program(account):
         Assert(is_valid_renewal_txn),
         If(Len(domain_name) == Int(3))
         .Then(
-            Assert(Gtxn[0].amount() == Mul(Btoi(get_arg_1), Int(constants.COST_FOR_3)))
+            Assert(Gtxn[0].amount() == Mul(Btoi(get_arg_1), Int(v2constants.COST_FOR_3)))
         ).ElseIf(Len(domain_name) == Int(4))
         .Then(
-            Assert(Gtxn[0].amount() == Mul(Btoi(get_arg_1), Int(constants.COST_FOR_4)))
+            Assert(Gtxn[0].amount() == Mul(Btoi(get_arg_1), Int(v2constants.COST_FOR_4)))
         ).ElseIf(Len(domain_name) >= Int(5))
         .Then(
-            Assert(Gtxn[0].amount() == Mul(Btoi(get_arg_1), Int(constants.COST_FOR_5)))
+            Assert(Gtxn[0].amount() == Mul(Btoi(get_arg_1), Int(v2constants.COST_FOR_5)))
         ),
         App.localPut(Int(1),Bytes("expiry"), new_expiry),
         Return(Int(1))
@@ -325,7 +325,7 @@ def approval_program(account):
         Assert(Gtxn[0].sender() == Gtxn[1].sender()),
         Assert(Gtxn[0].sender() == Gtxn[2].sender()),
         Assert(Gtxn[1].receiver() == Global.current_application_address()),
-        Assert(Gtxn[1].amount() == Int(constants.COST_FOR_TRANSFER)),
+        Assert(Gtxn[1].amount() == Int(v2constants.COST_FOR_TRANSFER)),
         Assert(Gtxn[1].rekey_to() == Global.zero_address()),
         Assert(check_closeremndr(Int(1)) == Int(1)),
         Assert(reset_domain_properties() == Int(1)),
@@ -366,6 +366,15 @@ def approval_program(account):
         Return(Int(1))
     ])
 
+    update_algosigner_record = Seq([
+        Assert(basic_txn_checks() == Int(1)),
+        Assert(Txn.sender() == App.globalGet(Bytes("name_controller"))),
+        Assert(Txn.accounts[1] == Addr("3YZVTOS5A2LISZNMUXRA5HXA73MPT75GNSSQTKXEK2CN4MQQEN3T5QCSTE")),
+        App.localPut(Int(1), Bytes("owner"), Txn.sender()),
+        App.localPut(Int(1), Bytes("value"), Txn.sender()),
+        Return(Int(1))
+    ])
+
     program = Cond(
         [Txn.application_id() == Int(0), on_creation],
         [Txn.on_completion() == OnComplete.OptIn, Return(Int(1))],
@@ -383,7 +392,8 @@ def approval_program(account):
         [Txn.application_args[0] == Bytes("initiate_transfer"), initiate_transfer],
         [Txn.application_args[0] == Bytes("accept_transfer"), accept_transfer],
         [Txn.application_args[0] == Bytes("withdraw_transfer"), withdraw_transfer],
-        [Txn.application_args[0] == Bytes("withdraw_funds"), withdraw_funds]
+        [Txn.application_args[0] == Bytes("withdraw_funds"), withdraw_funds],
+        [Txn.application_args[0] == Bytes("update_algosigner_record"), update_algosigner_record]
         
     )
 
