@@ -68,7 +68,7 @@ class TestDotAlgoNameRegistry(unittest.TestCase):
     
     def test_b_register5letterdotalgoname(self):
 
-        anshelper.FundNewAccount(TestDotAlgoNameRegistry.algod_client, TestDotAlgoNameRegistry.new_acct_addr, 15000000, TestDotAlgoNameRegistry.funding_acct_mnemonic)    
+        anshelper.FundNewAccount(TestDotAlgoNameRegistry.algod_client, TestDotAlgoNameRegistry.new_acct_addr, 12000000, TestDotAlgoNameRegistry.funding_acct_mnemonic)    
 
         print("Funded 12000000 to new account for the purpose of registering name")
         print("Funding account: "+TestDotAlgoNameRegistry.funding_addr)
