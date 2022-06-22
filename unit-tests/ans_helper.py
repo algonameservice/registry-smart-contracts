@@ -32,7 +32,7 @@ from pyteal import *
 import sys
 sys.path.append('../')
 
-from contracts.v2constants import COST_FOR_5, COST_FOR_4, COST_FOR_3
+from contracts.constants import COST_FOR_5, COST_FOR_4, COST_FOR_3
 from contracts.dot_algo_registry import approval_program, clear_state_program
 from contracts.dot_algo_name_record import ValidateRecord
 import base64
