@@ -116,10 +116,10 @@ def approval_program(account):
             is_default,
             If(is_default.hasValue()).Then(App.localDel(Int(1), Bytes("is_default"))),
             Return(Int(1))
-        ])           
-        
+        ])
+
     is_valid_registration_txn = Seq([
-        
+
         Assert(check_closeremndr(Int(0)) == Int(1)),
         Assert(basic_txn_checks() == Int(1)),
         
@@ -192,6 +192,57 @@ def approval_program(account):
         Txn.application_args[1] != Bytes("value")
     )
 
+
+    get_algo_price_from_oracle = App.globalGetEx(App.globalGet(Bytes("oracle_app_id_algo_usd")),Bytes("median"))
+    get_algo_price_decimals_from_oracle = App.globalGetEx(App.globalGet(Bytes("oracle_app_id_algo_usd")),Bytes("decimals"))
+
+    quotient = ScratchVar(TealType.uint64)
+    tmp = ScratchVar(TealType.uint64)
+
+    @Subroutine(TealType.uint64)
+    def get_usd_algo_price_from_oracle():
+        # Fetches ALGO median price from ANS Tellor Oracle and 
+        # returns number of ALGOs to 1 USD value
+        return Seq([
+            If(And(
+                get_algo_price_from_oracle.hasValue(), 
+                get_algo_price_decimals_from_oracle.hasValue()
+            ))
+            .Then(
+                Seq([
+                    quotient.store(Int(1)),
+                    For(i.store(Int(0)), i.load() < get_algo_price_decimals_from_oracle.value(), i.store(i.load() + Int(1))).Do(
+                        Seq([
+                        tmp.store(Mul(quotient.load(), Int(10))),
+                        quotient.store(tmp.load()),
+                        ])
+                    ),
+                    quotient.store(Mul(quotient.load(), Int(100))),
+                    Return(Div(quotient.load(), get_algo_price_from_oracle.value()))
+                ])
+            )
+            .Else(Return(Int(1))),
+        ])
+
+    set_oracle_app_id = Seq([
+        #TODO: Validate Input for app_id
+        App.globalPut(Bytes("oracle_app_id_algo_usd"),Btoi(Txn.application_args[1]))
+    ])
+    
+    @Subroutine(TealType.uint64)
+    def get_updated_price( numchar ):
+        return Seq([
+            If(numchar == Int(3))
+            .Then(Return(Mul(Int(constants.COST_FOR_3), get_usd_algo_price_from_oracle())))
+            .ElseIf( numchar == Int(4))
+            .Then(Return(Mul(Int(constants.COST_FOR_4), get_usd_algo_price_from_oracle())))
+            .ElseIf( numchar == Int(5))
+            .Then(Return(Mul(Int(constants.COST_FOR_5), get_usd_algo_price_from_oracle())))
+            .Else(
+                Err()
+            )
+        ])
+
     register_name = Seq([
 
         Assert(is_valid_registration_txn),
@@ -208,15 +259,15 @@ def approval_program(account):
             Or(
                 And(
                     Len(Txn.application_args[1]) == Int(3), 
-                    Gtxn[0].amount() >= Add(Int(constants.COST_FOR_3), Mul(number_of_years, Int(constants.COST_FOR_3)))
+                    Gtxn[0].amount() >= Add(get_updated_price(Int(3)), Mul(number_of_years, Int(constants.COST_FOR_3)))
                 ),
                 And(
                     Len(Txn.application_args[1]) == Int(4), 
-                    Gtxn[0].amount() >= Add(Int(constants.COST_FOR_4), Mul(number_of_years, Int(constants.COST_FOR_4)))
+                    Gtxn[0].amount() >= Add(get_updated_price(Int(4)), Mul(number_of_years, Int(constants.COST_FOR_4)))
                 ),
                 And(
                     Len(Txn.application_args[1]) >= Int(5), 
-                    Gtxn[0].amount() >= Add(Int(constants.COST_FOR_5), Mul(number_of_years, Int(constants.COST_FOR_5)))
+                    Gtxn[0].amount() >= Add(get_updated_price(Int(5)), Mul(number_of_years, Int(constants.COST_FOR_5)))
                 )
             )
         ),
