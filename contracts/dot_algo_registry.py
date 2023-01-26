@@ -81,6 +81,27 @@ def approval_program(account):
             Assert(Gtxn[txn_index].accounts.length() == size),
             Return(Int(1))
         ])        
+    
+    @Subroutine(TealType.uint64)
+    def is_within_grace_period():
+        return Seq([
+            get_name_status,
+            If(get_name_status.hasValue())
+            .Then(
+                If(
+                    And(
+                        Global.latest_timestamp() <= Add(current_expiry, Int(constants.NINETY_DAYS_TO_SECONDS)),
+                        Global.latest_timestamp() >= current_expiry
+                    )
+                ).Then(
+                    Return(Int(1))
+                ).Else(
+                    Return(Int(0))
+                )
+            ).Else(
+                Return(Int(0))
+            )
+        ])
 
     @Subroutine(TealType.uint64)
     def reset_domain_properties():
@@ -196,6 +217,8 @@ def approval_program(account):
 
         Assert(is_valid_registration_txn),
         get_name_status,        
+        If(get_name_status.hasValue())
+        .Then(Assert(Global.latest_timestamp() >= Add(current_expiry, Int(constants.NINETY_DAYS_TO_SECONDS)))),
         Assert(
             Or(
                 get_name_status.hasValue() == Int(0),
@@ -248,6 +271,7 @@ def approval_program(account):
     ])
     
     update_name = Seq([
+        Assert(is_within_grace_period() == Int(0)),
         Assert(basic_txn_checks() == Int(1)),
         Assert(Txn.application_args.length() == Int(3)),
         Assert(Txn.accounts.length() == Int(1)),                
@@ -263,6 +287,7 @@ def approval_program(account):
     ])
 
     update_resolver_account = Seq([
+        Assert(is_within_grace_period() == Int(0)),
         Assert(basic_txn_checks() == Int(1)),
         Assert(Global.group_size() == Int(1)),
         Assert(Txn.application_args.length() == Int(1)),
@@ -272,6 +297,7 @@ def approval_program(account):
     ])
 
     set_default_account = Seq([
+        Assert(is_within_grace_period() == Int(0)),
         Assert(basic_txn_checks() == Int(1)),
         Assert(is_name_owner == Txn.sender()),
         Assert(Txn.application_args.length() == Int(1)),
@@ -281,6 +307,7 @@ def approval_program(account):
     ])
 
     remove_property = Seq([
+        Assert(is_within_grace_period() == Int(0)),
         Assert(is_valid_delete_prop_txn),
         Assert(is_name_owner == Txn.sender()),
         property_to_delete,
@@ -292,6 +319,7 @@ def approval_program(account):
     ])
 
     initiate_transfer = Seq([
+        Assert(is_within_grace_period() == Int(0)),
         Assert(basic_txn_checks() == Int(1)),
         Assert(check_app_args_size(Int(0), Int(2))),
         Assert(check_app_accts_size(Int(0), Int(2))),
@@ -303,6 +331,7 @@ def approval_program(account):
     ])
 
     withdraw_transfer = Seq([
+        Assert(is_within_grace_period() == Int(0)),
         Assert(basic_txn_checks() == Int(1)),
         Assert(is_name_owner == Txn.sender()),
         Assert(Txn.application_args.length() == Int(1)),
@@ -313,6 +342,7 @@ def approval_program(account):
     ])
 
     accept_transfer = Seq([
+        Assert(is_within_grace_period() == Int(0)),
         Assert(basic_txn_checks() == Int(1)),
         Assert(check_app_args_size(Int(2), Int(1))),
         Assert(check_app_accts_size(Int(2), Int(1))),
