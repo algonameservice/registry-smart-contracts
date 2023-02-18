@@ -39,7 +39,8 @@ def approval_program(account):
     property_to_delete = App.localGetEx(Int(1), App.id(), Txn.application_args[1])
 
     on_creation = Seq([
-        App.globalPut(Bytes("name_controller"), Addr(account)),
+        #App.globalPut(Bytes("name_controller"), Addr(account)),
+        App.globalPut(Bytes("name_controller"), Txn.sender()),
         Return(Int(1))
     ])
 
@@ -203,6 +204,7 @@ def approval_program(account):
 
     is_valid_delete_prop_txn = And(
         basic_txn_checks() == Int(1),
+        is_within_grace_period() == Int(0),
         Txn.application_args.length() == Int(2),        
         Txn.application_args[1] != Bytes("name"),
         Txn.application_args[1] != Bytes("owner"),
@@ -423,10 +425,10 @@ def clear_state_program():
     return Int(1) 
 
 with open('dot_algo_registry_approval.teal', 'w') as f:
-    compiled = compileTeal(approval_program('PD2CGHFAZZQNYBRPZH7HNTA275K3FKZPENRSUXWZHBIVNPHVDFHLNIUSXU'), Mode.Application, version=5)
+    compiled = compileTeal(approval_program('PD2CGHFAZZQNYBRPZH7HNTA275K3FKZPENRSUXWZHBIVNPHVDFHLNIUSXU'), Mode.Application, version=6)
     f.write(compiled)
 
 with open('dot_algo_registry_clear_state.teal', 'w') as f:
-    compiled = compileTeal(clear_state_program(), Mode.Application, version=5)
+    compiled = compileTeal(clear_state_program(), Mode.Application, version=6)
     f.write(compiled)
 
