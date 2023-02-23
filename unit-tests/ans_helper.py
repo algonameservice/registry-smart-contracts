@@ -52,7 +52,11 @@ def SetupClient(network):
         headers = {
             "X-API-Key": mysecrets.MY_PURESTAKE_TOKEN
         }
-    
+    elif(network == "algonode"):
+        algod_address = "https://testnet-api.algonode.cloud"
+        algod_token = ""
+        headers={}
+
     else:
         raise ValueError
 
@@ -66,7 +70,9 @@ def SetupIndexer(network):
             'X-API-key' : mysecrets.MY_PURESTAKE_TOKEN,
         }
         algod_indexer=indexer.IndexerClient("", algod_address, headers)
-    
+    elif(network=="algonode"):
+        algod_address = "https://testnet-idx.algonode.cloud"
+        algod_indexer=indexer.IndexerClient("", algod_address)
     return algod_indexer
 
 def GetFundingAccount(algod_client):
@@ -124,7 +130,7 @@ def DeployDotAlgoReg(algod_client, contract_owner_mnemonic):
     ans_approval_program = compile_program(algod_client, import_teal_source_code_as_binary('dot_algo_registry_approval.teal'))
     ans_clear_state_program = compile_program(algod_client, import_teal_source_code_as_binary('dot_algo_registry_clear_state.teal'))
 
-    txn = transaction.ApplicationCreateTxn(sender, algod_client.suggested_params(), on_complete, ans_approval_program, ans_clear_state_program, global_schema, local_schema)
+    txn = transaction.ApplicationCreateTxn(sender, algod_client.suggested_params(), on_complete, ans_approval_program, ans_clear_state_program, global_schema, local_schema, extra_pages=1)
 
     # sign transaction
     signed_txn = txn.sign(private_key)
@@ -317,7 +323,7 @@ def get_socials(algod_client, name, platform_name, reg_app_id):
     list_platforms = ["discord","github","twitter","reddit","telegram","youtube"]
     assert(platform_name in list_platforms)
 
-    algod_indexer = SetupIndexer("purestake")
+    algod_indexer = SetupIndexer("algonode")
     reg_escrow_acct = logic.get_application_address(reg_app_id)
     # TODO: Need proper error handling, this fails keynotfound
     for apps_local_data in algod_indexer.account_info(address=prep_name_record_logic_sig(algod_client, name, reg_app_id).address())['account']['apps-local-state']:
@@ -336,7 +342,7 @@ def get_socials(algod_client, name, platform_name, reg_app_id):
 
 def resolve_name(algod_client, name, reg_app_id):
     # TODO: Make sure there are no edge cases
-    algod_indexer = SetupIndexer("purestake")
+    algod_indexer = SetupIndexer("algonode")
     reg_escrow_acct = logic.get_application_address(reg_app_id)
     for apps_local_data in algod_indexer.account_info(address=prep_name_record_logic_sig(algod_client,name, reg_app_id).address())['account']['apps-local-state']:
         owner = None
@@ -354,7 +360,7 @@ def resolve_name(algod_client, name, reg_app_id):
 
 def get_name_expiry(algod_client, name, reg_app_id):
     # TODO: Make sure there are no edge cases
-    algod_indexer = SetupIndexer("purestake")
+    algod_indexer = SetupIndexer("algonode")
     reg_escrow_acct = logic.get_application_address(reg_app_id)
     for apps_local_data in algod_indexer.account_info(address=prep_name_record_logic_sig(algod_client,name, reg_app_id).address())['account']['apps-local-state']:
         if(apps_local_data['id']==reg_app_id and not apps_local_data['deleted']):

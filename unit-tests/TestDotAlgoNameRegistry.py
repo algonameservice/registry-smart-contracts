@@ -31,9 +31,9 @@ unittest.TestLoader.sortTestMethodsUsing = None
 class TestDotAlgoNameRegistry(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.algod_client = anshelper.SetupClient("purestake")
+        cls.algod_client = anshelper.SetupClient("algonode")
         cls.funding_addr, cls.funding_acct_mnemonic = anshelper.GetFundingAccount(cls.algod_client)
-        cls.algod_indexer = anshelper.SetupIndexer("purestake")
+        cls.algod_indexer = anshelper.SetupIndexer("algonode")
 
         cls.new_acct_addr, cls.new_acct_mnemonic = anshelper.GenerateAccount()
 

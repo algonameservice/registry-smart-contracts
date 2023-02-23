@@ -39,7 +39,8 @@ def approval_program(account):
     property_to_delete = App.localGetEx(Int(1), App.id(), Txn.application_args[1])
 
     on_creation = Seq([
-        App.globalPut(Bytes("name_controller"), Addr(account)),
+        #App.globalPut(Bytes("name_controller"), Addr(account)),
+        App.globalPut(Bytes("name_controller"), Txn.sender()),
         Return(Int(1))
     ])
 
@@ -81,6 +82,27 @@ def approval_program(account):
             Assert(Gtxn[txn_index].accounts.length() == size),
             Return(Int(1))
         ])        
+    
+    @Subroutine(TealType.uint64)
+    def is_within_grace_period():
+        return Seq([
+            get_name_status,
+            If(get_name_status.hasValue())
+            .Then(
+                If(
+                    And(
+                        Global.latest_timestamp() <= Add(current_expiry, Int(constants.NINETY_DAYS_TO_SECONDS)),
+                        Global.latest_timestamp() >= current_expiry
+                    )
+                ).Then(
+                    Return(Int(1))
+                ).Else(
+                    Return(Int(0))
+                )
+            ).Else(
+                Return(Int(0))
+            )
+        ])
 
     @Subroutine(TealType.uint64)
     def reset_domain_properties():
@@ -182,6 +204,7 @@ def approval_program(account):
 
     is_valid_delete_prop_txn = And(
         basic_txn_checks() == Int(1),
+        is_within_grace_period() == Int(0),
         Txn.application_args.length() == Int(2),        
         Txn.application_args[1] != Bytes("name"),
         Txn.application_args[1] != Bytes("owner"),
@@ -196,6 +219,8 @@ def approval_program(account):
 
         Assert(is_valid_registration_txn),
         get_name_status,        
+        If(get_name_status.hasValue())
+        .Then(Assert(Global.latest_timestamp() >= Add(current_expiry, Int(constants.NINETY_DAYS_TO_SECONDS)))),
         Assert(
             Or(
                 get_name_status.hasValue() == Int(0),
@@ -248,6 +273,7 @@ def approval_program(account):
     ])
     
     update_name = Seq([
+        Assert(is_within_grace_period() == Int(0)),
         Assert(basic_txn_checks() == Int(1)),
         Assert(Txn.application_args.length() == Int(3)),
         Assert(Txn.accounts.length() == Int(1)),                
@@ -263,6 +289,7 @@ def approval_program(account):
     ])
 
     update_resolver_account = Seq([
+        Assert(is_within_grace_period() == Int(0)),
         Assert(basic_txn_checks() == Int(1)),
         Assert(Global.group_size() == Int(1)),
         Assert(Txn.application_args.length() == Int(1)),
@@ -271,16 +298,8 @@ def approval_program(account):
         Return(Int(1))
     ])
 
-    set_default_account = Seq([
-        Assert(basic_txn_checks() == Int(1)),
-        Assert(is_name_owner == Txn.sender()),
-        Assert(Txn.application_args.length() == Int(1)),
-        Assert(Txn.accounts.length() == Int(1)),
-        App.localPut(Int(1), Bytes("is_default"), Int(1)),
-        Return(Int(1))
-    ])
-
     remove_property = Seq([
+        Assert(is_within_grace_period() == Int(0)),
         Assert(is_valid_delete_prop_txn),
         Assert(is_name_owner == Txn.sender()),
         property_to_delete,
@@ -292,6 +311,7 @@ def approval_program(account):
     ])
 
     initiate_transfer = Seq([
+        Assert(is_within_grace_period() == Int(0)),
         Assert(basic_txn_checks() == Int(1)),
         Assert(check_app_args_size(Int(0), Int(2))),
         Assert(check_app_accts_size(Int(0), Int(2))),
@@ -303,6 +323,7 @@ def approval_program(account):
     ])
 
     withdraw_transfer = Seq([
+        Assert(is_within_grace_period() == Int(0)),
         Assert(basic_txn_checks() == Int(1)),
         Assert(is_name_owner == Txn.sender()),
         Assert(Txn.application_args.length() == Int(1)),
@@ -313,6 +334,7 @@ def approval_program(account):
     ])
 
     accept_transfer = Seq([
+        Assert(is_within_grace_period() == Int(0)),
         Assert(basic_txn_checks() == Int(1)),
         Assert(check_app_args_size(Int(2), Int(1))),
         Assert(check_app_accts_size(Int(2), Int(1))),
@@ -379,7 +401,6 @@ def approval_program(account):
         [Txn.application_args[0] == Bytes("remove_property"), remove_property],
         [Txn.application_args[0] == Bytes("renew_name"), renew_name],
         [Txn.application_args[0] == Bytes("update_resolver_account"), update_resolver_account],
-        [Txn.application_args[0] == Bytes("set_default_account"), set_default_account],
         [Txn.application_args[0] == Bytes("initiate_transfer"), initiate_transfer],
         [Txn.application_args[0] == Bytes("accept_transfer"), accept_transfer],
         [Txn.application_args[0] == Bytes("withdraw_transfer"), withdraw_transfer],
@@ -393,10 +414,10 @@ def clear_state_program():
     return Int(1) 
 
 with open('dot_algo_registry_approval.teal', 'w') as f:
-    compiled = compileTeal(approval_program('PD2CGHFAZZQNYBRPZH7HNTA275K3FKZPENRSUXWZHBIVNPHVDFHLNIUSXU'), Mode.Application, version=5)
+    compiled = compileTeal(approval_program('PD2CGHFAZZQNYBRPZH7HNTA275K3FKZPENRSUXWZHBIVNPHVDFHLNIUSXU'), Mode.Application, version=6)
     f.write(compiled)
 
 with open('dot_algo_registry_clear_state.teal', 'w') as f:
-    compiled = compileTeal(clear_state_program(), Mode.Application, version=5)
+    compiled = compileTeal(clear_state_program(), Mode.Application, version=6)
     f.write(compiled)
 
