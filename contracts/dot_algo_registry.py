@@ -298,16 +298,6 @@ def approval_program(account):
         Return(Int(1))
     ])
 
-    set_default_account = Seq([
-        Assert(is_within_grace_period() == Int(0)),
-        Assert(basic_txn_checks() == Int(1)),
-        Assert(is_name_owner == Txn.sender()),
-        Assert(Txn.application_args.length() == Int(1)),
-        Assert(Txn.accounts.length() == Int(1)),
-        App.localPut(Int(1), Bytes("is_default"), Int(1)),
-        Return(Int(1))
-    ])
-
     remove_property = Seq([
         Assert(is_within_grace_period() == Int(0)),
         Assert(is_valid_delete_prop_txn),
@@ -411,7 +401,6 @@ def approval_program(account):
         [Txn.application_args[0] == Bytes("remove_property"), remove_property],
         [Txn.application_args[0] == Bytes("renew_name"), renew_name],
         [Txn.application_args[0] == Bytes("update_resolver_account"), update_resolver_account],
-        [Txn.application_args[0] == Bytes("set_default_account"), set_default_account],
         [Txn.application_args[0] == Bytes("initiate_transfer"), initiate_transfer],
         [Txn.application_args[0] == Bytes("accept_transfer"), accept_transfer],
         [Txn.application_args[0] == Bytes("withdraw_transfer"), withdraw_transfer],
